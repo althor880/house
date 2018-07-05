@@ -40,7 +40,7 @@ Class that describes a house and its physical details.
 #### Example Usage
 
 ```
->>> from house import House
+>>> from househunt import House
 >>> h = House()
 >>> print h
 None None, None None
@@ -100,7 +100,7 @@ Class that describes a real estate listing and its details.
 #### Example Usage
 
 ```
->>> from house import House, Listing
+>>> from househunt import House, Listing
 >>> h = House(street_address="42 Wallaby Way", city="Sydney", state="Australia", zip="12345")
 >>> l = Listing(house=h, list_price=123456, days_on_market=5)
 >>> print l.detailed
@@ -139,3 +139,5 @@ MLS ID: None
 Days on Market: 5
 Original Price: None
 ```
+
+A code sample is added to (./househunt_demo.py). The sample searches for houses in Bothell, WA

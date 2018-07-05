@@ -9,6 +9,7 @@ import csv
 import requests
 import xmltodict
 import searchresults
+import hashlib
 
 from tinydb import TinyDB, Query
 
@@ -527,6 +528,8 @@ class ZillAPI(object):
                 ZillAPI.save_zwsid(zwsid, zwsid_filename)
             elif save_zwsid and (zwsid_filename is None):
                 raise ValueError("Must provide a zwsid_filename if save_zwsid is True!")
+        elif 'ZWSID' in os.environ:
+            cls.ZWSID = os.environ['ZWSID']
         elif zwsid_filename:
             ZillAPI.load_zwsid(zwsid_filename=zwsid_filename)
         else:
@@ -570,6 +573,40 @@ class ZillAPI(object):
         else:
             return max(zestimates)
 
+class UrlCache(object):
+    def __init__(self, cahe_folder=None):
+        self.cahe_folder = cahe_folder
+
+    def _check_cache(self, enc_url):
+        if self.cahe_folder is None: return None
+        cache_file = os.path.join(self.cahe_folder, enc_url)
+        if os.path.exists(cache_file):
+            with open(cache_file, 'r') as content_file:
+                return content_file.read()
+
+    def _add_cache(self, enc_url, content):
+        if self.cahe_folder is None: return
+        cache_file = os.path.join(self.cahe_folder, enc_url)
+        with open(cache_file, 'w') as content_file:
+            content_file.write(content)
+
+    def _get_cahe_key(self, url):
+        hash_object = hashlib.md5(url)
+        enc_request = hash_object.hexdigest()
+        return enc_request
+
+    def Get(self, url, headers):
+        enc_url = self._get_cahe_key(url)
+        ret = self._check_cache(enc_url)
+        if ret is not None:
+            return ret
+
+        req = urllib2.Request(url, headers=headers)
+        browse = urllib2.urlopen(req)
+        content = browse.read()
+        self._add_cache(enc_url, content)
+        return content
+
 class RFAPI(object):
 
     DL_URL = 'https://www.redfin.com/stingray/do/gis-search'
@@ -578,7 +615,7 @@ class RFAPI(object):
         'al': 3,
         'isSearchFormParamsDefault': 'false',
         'lpp': 50,
-        'market': 'boston',
+        #'market': 'boston', # not realy needed
         'mpt': 99,
         'no_outline': 'false',
         'num_homes': 500,
@@ -597,12 +634,14 @@ class RFAPI(object):
         self,
         region_ids=[],
         load_listings=False,
-        get_zestimates=False
+        get_zestimates=False,
+        cahe_folder=None
     ):
         self.region_ids = region_ids
         self.result_sets = []
         self.listings = []
         self.dl_urls = []
+        self.cahe = UrlCache(cahe_folder)
         if region_ids:
             self.build_dl_urls()
         if load_listings:
@@ -654,14 +693,17 @@ class RFAPI(object):
         user_agent = ua.random
         for dl_url in self.dl_urls:
             headers = { 'User-Agent': user_agent }
-            req = urllib2.Request(dl_url, headers=headers)
-            browse = urllib2.urlopen(req)
-            csv_str = browse.read()
+            csv_str = self.cahe.Get(dl_url, headers)
             csv_f = StringIO.StringIO(csv_str)
             reader = csv.reader(csv_f, delimiter=',')
-            headers = reader.next()
+            header = []
+            # skip empty lines
+            while len(header) == 0:
+                header = reader.next()
+            #print("header = {}".format(len(header)))
             for row in reader:
-                ds = zip(headers, row)
+                ds = zip(header, row)
+                #print(len(row))
                 self.result_sets.append(dict(ds))
 
     def dataset_to_listings(self):

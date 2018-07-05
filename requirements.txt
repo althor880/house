@@ -1,0 +1,9 @@
+xmltodict
+requests
+urllib3
+chardet
+certifi
+tinydb
+lxml
+fake_useragent
+python-dotenv
