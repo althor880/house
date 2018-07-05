@@ -6,3 +6,7 @@ ZWSID
 MANIFEST
 dist
 househunt.egg-info
+.venv
+.cache
+.env
+/.project
